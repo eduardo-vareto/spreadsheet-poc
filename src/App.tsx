@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
-import { HyperFormula } from "hyperformula";
+import { HyperFormula, SimpleCellAddress } from "hyperformula";
 
 import "ag-grid-community/dist/styles/ag-grid.css";
 import "ag-grid-community/dist/styles/ag-theme-alpine.css";
+import { BaseColDefParams } from "ag-grid-community/dist/lib/entities/colDef";
 
 const options = {
   licenseKey: "gpl-v3",
@@ -18,33 +19,55 @@ const App = () => {
   ]);
 
   const [rowData] = useState([
-    { make: "Toyota", model: "Celica", price: 35000 },
-    { make: "Ford", model: "Mondeo", price: 32000 },
-    { make: "Porsche", model: "Boxster", price: 72000 },
+    ["Toyota", "Celica", 35000],
+    ["Ford", "Mondeo", 32000],
+    ["Porsche", "Boxster", 72000],
+    ["Total", "", "=SUM(C1:C3)"],
   ]);
 
-  const hfData = [...rowData.map(Object.values), ["Total", "", "=SUM(C1:C3)"]];
+  const gridValues = rowData.map(([make, model, price]) => ({
+    make,
+    model,
+    price,
+  }));
 
-  const hf = HyperFormula.buildFromArray(hfData, options);
+  const hf = useRef(HyperFormula.buildFromArray(rowData, options));
+
+  useEffect(() => {
+    hf.current?.on("valuesUpdated", (changes) => {
+      console.log(changes);
+    });
+  }, []);
 
   const columnsInvertedIndex = columnDefs.reduce((acc, c, i) => {
     acc.set(c.field, i);
     return acc;
   }, new Map<string, number>());
 
-  const gridValues = hfData.map(([make, model, price]) => ({
-    make,
-    model,
-    price,
-  }));
+  const getCellAddess = (param: BaseColDefParams): SimpleCellAddress => {
+    const col = columnsInvertedIndex.get(param.column.getColId())!;
+    const row = param.node!.rowIndex!;
+    return { col, row, sheet: 0 };
+  };
 
   const defaultColDef: ColDef = useMemo(
     () => ({
       editable: true,
+      valueGetter: (p) => {
+        const address = getCellAddess(p);
+        return (
+          hf.current?.getCellFormula(address) ||
+          hf.current?.getCellValue(address)
+        );
+      },
+      valueSetter: (p) => {
+        const address = getCellAddess(p);
+        hf.current?.setCellContents(address, [[p.newValue]]);
+        return true;
+      },
       valueFormatter: (p) => {
-        const col = columnsInvertedIndex.get(p.column.getColId())!;
-        const row = p.node!.rowIndex!;
-        const value = hf.getCellValue({ col, row, sheet: 0 });
+        const address = getCellAddess(p);
+        const value = hf.current?.getCellValue(address);
         return value!.toString();
       },
     }),
