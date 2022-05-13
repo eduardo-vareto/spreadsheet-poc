@@ -44,7 +44,7 @@ const App = () => {
     return acc;
   }, new Map<string, number>());
 
-  const getCellAddess = (param: BaseColDefParams): SimpleCellAddress => {
+  const getCellAddress = (param: BaseColDefParams): SimpleCellAddress => {
     const col = columnsInvertedIndex.get(param.column.getColId())!;
     const row = param.node!.rowIndex!;
     return { col, row, sheet: 0 };
@@ -54,19 +54,19 @@ const App = () => {
     () => ({
       editable: true,
       valueGetter: (p) => {
-        const address = getCellAddess(p);
+        const address = getCellAddress(p);
         return (
           hf.current?.getCellFormula(address) ||
           hf.current?.getCellValue(address)
         );
       },
       valueSetter: (p) => {
-        const address = getCellAddess(p);
+        const address = getCellAddress(p);
         hf.current?.setCellContents(address, [[p.newValue]]);
         return true;
       },
       valueFormatter: (p) => {
-        const address = getCellAddess(p);
+        const address = getCellAddress(p);
         const value = hf.current?.getCellValue(address);
         return value!.toString();
       },
