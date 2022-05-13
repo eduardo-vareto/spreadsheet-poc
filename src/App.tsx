@@ -11,6 +11,12 @@ const options = {
 };
 
 const App = () => {
+  const [columnDefs] = useState([
+    { field: "make" },
+    { field: "model" },
+    { field: "price" },
+  ]);
+
   const [rowData] = useState([
     { make: "Toyota", model: "Celica", price: 35000 },
     { make: "Ford", model: "Mondeo", price: 32000 },
@@ -20,16 +26,13 @@ const App = () => {
   const hfData = [...rowData.map(Object.values), ["Total", "", "=SUM(C1:C3)"]];
 
   const hf = HyperFormula.buildFromArray(hfData, options);
-  const sheetValues = hf.getSheetValues(0);
 
-  const [columnDefs] = useState([
-    { field: "make" },
-    { field: "model" },
-    { field: "price" },
-  ]);
+  const columnsInvertedIndex = columnDefs.reduce((acc, c, i) => {
+    acc.set(c.field, i);
+    return acc;
+  }, new Map<string, number>());
 
-  console.log(sheetValues);
-  const gridValues = sheetValues.map(([make, model, price]) => ({
+  const gridValues = hfData.map(([make, model, price]) => ({
     make,
     model,
     price,
@@ -39,8 +42,10 @@ const App = () => {
     () => ({
       editable: true,
       valueFormatter: (p) => {
-        console.log(Object.keys(p));
-        return `${p.column.getId()} ${p.value}`;
+        const col = columnsInvertedIndex.get(p.column.getColId())!;
+        const row = p.node!.rowIndex!;
+        const value = hf.getCellValue({ col, row, sheet: 0 });
+        return value!.toString();
       },
     }),
     []
